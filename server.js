@@ -285,7 +285,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === 'POST' && url.pathname === '/admin/logout') {
       session.admin = false;
-      return redirect(res, '/admin');
+      return redirect(res, '/');
     }
     if (req.method === 'GET' && url.pathname === '/admin/dashboard') {
       if (!requireAdmin(req, res)) return;
