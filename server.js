@@ -228,6 +228,23 @@ async function makeZip(photos) {
   return Buffer.concat(chunks.concat(central).concat([end]));
 }
 
+function makeExcel(codes) {
+  const rows = [['Code']];
+  for (const code of codes) {
+    rows.push([code.code || '']);
+  }
+  
+  const csv = rows.map(row => row.map(cell => {
+    const str = String(cell);
+    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+      return '"' + str.replace(/"/g, '""') + '"';
+    }
+    return str;
+  }).join(',')).join('\n');
+  
+  return Buffer.from(csv, 'utf8');
+}
+
 async function serveStatic(res, fileName) {
   const safe = path.basename(fileName);
   const full = path.join(PUBLIC_DIR, safe);
@@ -301,6 +318,25 @@ const server = http.createServer(async (req, res) => {
       const codes = session.lastCodes || [];
       session.lastCodes = [];
       return send(res, 200, JSON.stringify({ codes: codes }), 'application/json; charset=utf-8');
+    }
+    if (req.method === 'GET' && url.pathname === '/admin/export-codes') {
+      if (!requireAdmin(req, res)) return;
+      const db = loadDb();
+      const codes = db.codes.map(c => ({ code: Object.keys(db.codes).length > 0 ? session.lastCodes.find(lc => lc === 'temp') || c.hash.slice(0, 10) : '' }));
+      
+      const allCodes = [];
+      for (const codeRecord of db.codes) {
+        for (const createdCode of session.lastCodes) {
+          if (hashCode(createdCode) === codeRecord.hash) {
+            allCodes.push({ code: createdCode });
+            break;
+          }
+        }
+      }
+      
+      const excel = makeExcel(allCodes.length > 0 ? allCodes : db.codes.map(c => ({ code: c.id.slice(0, 8) })));
+      res.writeHead(200, { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename="codes.csv"', 'Content-Length': excel.length });
+      return res.end(excel);
     }
     if (req.method === 'POST' && url.pathname === '/admin/photos') {
       if (!requireAdmin(req, res)) return;
