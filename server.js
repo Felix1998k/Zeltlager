@@ -231,7 +231,7 @@ async function makeZip(photos) {
 function makeExcel(codes) {
   const rows = [['Code']];
   for (const code of codes) {
-    rows.push([code.code || '']);
+    rows.push([String(code.code || '').toUpperCase()]);
   }
   
   const csv = rows.map(row => row.map(cell => {
@@ -322,8 +322,6 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && url.pathname === '/admin/export-codes') {
       if (!requireAdmin(req, res)) return;
       const db = loadDb();
-      const codes = db.codes.map(c => ({ code: Object.keys(db.codes).length > 0 ? session.lastCodes.find(lc => lc === 'temp') || c.hash.slice(0, 10) : '' }));
-      
       const allCodes = [];
       for (const codeRecord of db.codes) {
         for (const createdCode of session.lastCodes) {
